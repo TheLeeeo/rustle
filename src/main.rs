@@ -45,7 +45,7 @@ struct RustleGame {
     dictionary: Vec<String>,
     word: String,
     guessed_letters: HashSet<char>,
-    guesses: Vec<ColoredString>,
+    guesses: Vec<Vec<ColoredString>>,
 }
 
 impl RustleGame {
@@ -61,9 +61,11 @@ impl RustleGame {
         }
     }
 
-    fn colorize_guess(&mut self, guess: &String) -> ColoredString {
-        let mut guess_array: Vec<ColoredString> =
-            guess.chars().map(|c| c.to_string().color(INCORRECT_COLOR)).collect();
+    fn colorize_guess(&mut self, guess: &str) -> Vec<ColoredString> {
+        let mut guess_array: Vec<ColoredString> = guess
+            .chars()
+            .map(|c| c.to_string().color(INCORRECT_COLOR))
+            .collect();
 
         let mut char_count: HashMap<char, i32> = create_charmap(&self.word);
 
@@ -100,11 +102,7 @@ impl RustleGame {
                 self.guessed_letters.insert(c);
             };
         });
-
         guess_array
-            .iter()
-            .fold(String::new(), |acc, c| acc + c.to_string().as_str())
-            .normal()
     }
 
     fn display_guesses(&mut self) {
@@ -113,7 +111,9 @@ impl RustleGame {
             .enumerate()
             .for_each(|(guess_number, guess)| {
                 print!("{}: ", guess_number + 1);
-                print!("{guess} ");
+                for elem in guess {
+                    print!("{elem} ");
+                }
                 println!();
             });
     }
@@ -220,11 +220,69 @@ mod tests {
     }
 
     #[test]
-    fn test_display_guesses() {
+    fn test_colorize_guess_all_correct() {
         let mut game = RustleGame::new();
         game.word = "ABC".to_string();
-        game.guesses = vec!(game.colorize_guess(&"ABC".to_string()));
-        game.display_guesses();
-        game.display_invalid_letters()
+        let colored_guess = game.colorize_guess(&("ABC".to_string()));
+        assert_eq!(
+            colored_guess,
+            (vec![
+                "A".color(CORRECT_COLOR),
+                "B".color(CORRECT_COLOR),
+                "C".color(CORRECT_COLOR)
+            ])
+        );
+        assert_eq!(game.guessed_letters, (vec![]).into_iter().collect());
+    }
+
+    #[test]
+    fn test_colorize_guess_all_incorrect() {
+        let mut game = RustleGame::new();
+        game.word = "ABC".to_string();
+        let colored_guess = game.colorize_guess(&("DEF".to_string()));
+        assert_eq!(
+            colored_guess,
+            (vec![
+                "D".color(INCORRECT_COLOR),
+                "E".color(INCORRECT_COLOR),
+                "F".color(INCORRECT_COLOR)
+            ])
+        );
+        assert_eq!(
+            game.guessed_letters,
+            (vec!['D', 'E', 'F'].into_iter().collect())
+        );
+    }
+
+    #[test]
+    fn test_colorize_guess_two_misplaced() {
+        let mut game = RustleGame::new();
+        game.word = "ABC".to_string();
+        let colored_guess = game.colorize_guess(&("ACB".to_string()));
+        assert_eq!(
+            colored_guess,
+            (vec![
+                "C".color(CORRECT_COLOR),
+                "B".color(MISPLACED_COLOR),
+                "A".color(MISPLACED_COLOR)
+            ])
+        );
+        assert_eq!(game.guessed_letters, (vec!['B', 'A'].into_iter().collect()));
+    }
+
+    #[test]
+    fn test_colorize_guess_one_correct_one_misplaced() {
+        let mut game = RustleGame::new();
+        game.word = "ABC".to_string();
+        let colored_guess = game.colorize_guess(&("ACD".to_string()));
+        assert_eq!(
+            colored_guess,
+            (vec![
+                "A".color(CORRECT_COLOR),
+                "C".color(MISPLACED_COLOR),
+                "D".color(INCORRECT_COLOR)
+            ])
+        );
+        assert_eq!(game.guessed_letters, (vec!['D'].into_iter().collect()));
     }
 }
